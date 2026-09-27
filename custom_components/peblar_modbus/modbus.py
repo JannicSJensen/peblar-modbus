@@ -9,6 +9,7 @@ from typing import Final
 
 _READ_HOLDING_REGISTERS: Final = 3
 _READ_INPUT_REGISTERS: Final = 4
+_WRITE_SINGLE_REGISTER: Final = 6
 _WRITE_MULTIPLE_REGISTERS: Final = 16
 
 
@@ -69,7 +70,7 @@ class PeblarModbusClient:
         self,
         host: str,
         port: int = 502,
-        unit_id: int = 255,
+        unit_id: int = 1,
         timeout: float = 5,
     ) -> None:
         self.host = host
@@ -93,12 +94,25 @@ class PeblarModbusClient:
         """Write one or more holding registers with function code 16."""
         if not values:
             raise ValueError("At least one register value is required")
+        if len(values) > 123:
+            raise ValueError("Cannot write more than 123 registers")
+        if any(not 0 <= value <= 0xFFFF for value in values):
+            raise ValueError("Register values must be between 0 and 65535")
         payload = (
             struct.pack(">HHB", address, len(values), len(values) * 2)
             + b"".join(struct.pack(">H", value) for value in values)
         )
         response = await self._request(_WRITE_MULTIPLE_REGISTERS, payload)
         if response != struct.pack(">HH", address, len(values)):
+            raise PeblarModbusResponseError("Unexpected write response")
+
+    async def write_holding_register(self, address: int, value: int) -> None:
+        """Write one holding register with function code 6."""
+        if not 0 <= value <= 0xFFFF:
+            raise ValueError("Register value must be between 0 and 65535")
+        payload = struct.pack(">HH", address, value)
+        response = await self._request(_WRITE_SINGLE_REGISTER, payload)
+        if response != payload:
             raise PeblarModbusResponseError("Unexpected write response")
 
     async def read_information(self) -> PeblarInfo:
@@ -168,7 +182,7 @@ class PeblarModbusClient:
 
     async def set_force_single_phase(self, enabled: bool) -> None:
         """Enable or disable forced single-phase charging."""
-        await self.write_holding_registers(40002, [int(enabled)])
+        await self.write_holding_register(40002, int(enabled))
 
     async def _read_registers(
         self, function_code: int, address: int, count: int
