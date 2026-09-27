@@ -38,7 +38,7 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
         self.server = await asyncio.start_server(self._handle, "127.0.0.1", 0)
         socket = self.server.sockets[0]
         self.client = modbus.PeblarModbusClient(
-            "127.0.0.1", socket.getsockname()[1], unit_id=255
+            "127.0.0.1", socket.getsockname()[1]
         )
 
     async def asyncTearDown(self) -> None:
@@ -59,9 +59,11 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
             body = bytes([function, count * 2]) + struct.pack(
                 f">{count}H", *values
             )
-        else:
+        elif function == 16:
             address, count = struct.unpack(">HH", payload[:4])
             body = bytes([function]) + struct.pack(">HH", address, count)
+        else:
+            body = bytes([function]) + payload
         writer.write(
             struct.pack(">HHHB", transaction, protocol, len(body) + 1, unit)
             + body
@@ -73,7 +75,7 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
         result = await self.client.read_input_registers(30000, 2)
         self.assertEqual(result, [1, 2])
         self.assertEqual(
-            self.requests, [(255, 4, struct.pack(">HH", 30000, 2))]
+            self.requests, [(1, 4, struct.pack(">HH", 30000, 2))]
         )
 
     async def test_write_current(self) -> None:
@@ -82,11 +84,18 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
             self.requests,
             [
                 (
-                    255,
+                    1,
                     16,
                     struct.pack(">HHBHH", 40000, 2, 4, 0, 16000),
                 )
             ],
+        )
+
+    async def test_write_force_single_phase(self) -> None:
+        await self.client.set_force_single_phase(True)
+        self.assertEqual(
+            self.requests,
+            [(1, 6, struct.pack(">HH", 40002, 1))],
         )
 
 

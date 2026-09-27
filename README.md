@@ -42,7 +42,8 @@ then restart Home Assistant.
 ## Configuration
 
 Enter the charger's hostname or IP address. The defaults are TCP port `502`,
-Modbus unit ID `255`, and a 10-second polling interval.
+Modbus unit ID `1`, matching Peblar's reference client, and a 10-second polling
+interval.
 
 Write controls are disabled by default. Enable them only after setting the
 charger's Modbus API access mode to **ReadWrite**. Setting the charge current to
