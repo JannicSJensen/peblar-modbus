@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, override
 
 import voluptuous as vol
@@ -27,7 +28,15 @@ from .const import (
     DEFAULT_UNIT_ID,
     DOMAIN,
 )
-from .modbus import PeblarModbusClient, PeblarModbusError
+from .modbus import (
+    PeblarInfo,
+    PeblarModbusClient,
+    PeblarModbusConnectionError,
+    PeblarModbusError,
+    PeblarModbusResponseError,
+)
+
+LOGGER = logging.getLogger(__name__)
 
 
 class PeblarModbusConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -41,15 +50,28 @@ class PeblarModbusConfigFlow(ConfigFlow, domain=DOMAIN):
         """Configure a Peblar charger."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            client = PeblarModbusClient(
-                user_input[CONF_HOST],
-                int(user_input[CONF_PORT]),
-                int(user_input[CONF_UNIT_ID]),
-            )
             try:
-                info = await client.read_information()
-            except PeblarModbusError:
+                info, unit_id = await self._async_probe(
+                    user_input[CONF_HOST],
+                    int(user_input[CONF_PORT]),
+                    int(user_input[CONF_UNIT_ID]),
+                )
+            except PeblarModbusConnectionError as err:
+                LOGGER.warning(
+                    "Cannot connect to Peblar charger at %s:%s: %s",
+                    user_input[CONF_HOST],
+                    user_input[CONF_PORT],
+                    err,
+                )
                 errors["base"] = "cannot_connect"
+            except PeblarModbusResponseError as err:
+                LOGGER.warning(
+                    "Peblar charger at %s:%s returned an invalid Modbus response: %s",
+                    user_input[CONF_HOST],
+                    user_input[CONF_PORT],
+                    err,
+                )
+                errors["base"] = "invalid_response"
             else:
                 await self.async_set_unique_id(info.serial_number)
                 self._abort_if_unique_id_configured(
@@ -63,7 +85,7 @@ class PeblarModbusConfigFlow(ConfigFlow, domain=DOMAIN):
                     data={
                         **user_input,
                         CONF_PORT: int(user_input[CONF_PORT]),
-                        CONF_UNIT_ID: int(user_input[CONF_UNIT_ID]),
+                        CONF_UNIT_ID: unit_id,
                         CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
                     },
                 )
@@ -96,6 +118,32 @@ class PeblarModbusConfigFlow(ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+        )
+
+    async def _async_probe(
+        self, host: str, port: int, unit_id: int
+    ) -> tuple[PeblarInfo, int]:
+        """Probe the selected unit ID, then Peblar's other commonly used ID."""
+        fallback_unit_id = 255 if unit_id == 1 else 1 if unit_id == 255 else None
+        try:
+            return (
+                await PeblarModbusClient(host, port, unit_id).read_information(),
+                unit_id,
+            )
+        except PeblarModbusError:
+            if fallback_unit_id is None:
+                raise
+
+        LOGGER.debug(
+            "Peblar charger did not respond on unit ID %s; trying %s",
+            unit_id,
+            fallback_unit_id,
+        )
+        return (
+            await PeblarModbusClient(
+                host, port, fallback_unit_id
+            ).read_information(),
+            fallback_unit_id,
         )
 
     @staticmethod
