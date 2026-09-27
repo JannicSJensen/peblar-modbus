@@ -117,16 +117,39 @@ class PeblarModbusClient:
 
     async def read_information(self) -> PeblarInfo:
         """Read static charger information."""
-        system = await self.read_input_registers(30050, 36)
-        diagnostics = await self.read_input_registers(30092, 2)
-        api = await self.read_input_registers(30123, 2)
+        serial_number, product_number, firmware_version = await asyncio.gather(
+            self.read_input_registers(30050, 12),
+            self.read_input_registers(30062, 12),
+            self.read_input_registers(30074, 12),
+        )
+        phase_count = (await self.read_input_registers(30092, 1))[0]
+        independent_relays = (await self.read_input_registers(30093, 1))[0]
+        if phase_count not in (1, 2, 3):
+            raise PeblarModbusResponseError(
+                f"Charger reported invalid phase count {phase_count}"
+            )
+        if independent_relays not in (0, 1):
+            raise PeblarModbusResponseError(
+                f"Charger reported invalid relay mode {independent_relays}"
+            )
+        try:
+            api = await self.read_input_registers(30123, 2)
+            api_version = f"{api[0]}.{api[1]}"
+        except PeblarModbusResponseError:
+            # API version registers are metadata and are absent on some
+            # otherwise compatible firmware versions.
+            api_version = "unknown"
+
+        serial = decode_ascii(serial_number)
+        if not serial:
+            raise PeblarModbusResponseError("Charger returned an empty serial number")
         return PeblarInfo(
-            serial_number=decode_ascii(system[0:12]),
-            product_number=decode_ascii(system[12:24]),
-            firmware_version=decode_ascii(system[24:36]),
-            phase_count=diagnostics[0],
-            independent_relays=diagnostics[1] == 1,
-            api_version=f"{api[0]}.{api[1]}",
+            serial_number=serial,
+            product_number=decode_ascii(product_number),
+            firmware_version=decode_ascii(firmware_version),
+            phase_count=phase_count,
+            independent_relays=independent_relays == 1,
+            api_version=api_version,
         )
 
     async def read_data(self, phase_count: int) -> dict[str, object]:
@@ -189,7 +212,9 @@ class PeblarModbusClient:
     ) -> list[int]:
         if not 1 <= count <= 125:
             raise ValueError("Register count must be between 1 and 125")
-        response = await self._request(function_code, struct.pack(">HH", address, count))
+        response = await self._request(
+            function_code, struct.pack(">HH", address, count)
+        )
         if (
             not response
             or response[0] != count * 2

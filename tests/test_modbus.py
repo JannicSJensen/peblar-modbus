@@ -35,6 +35,7 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self) -> None:
         self.requests: list[tuple[int, int, bytes]] = []
+        self.exception_addresses: set[int] = set()
         self.server = await asyncio.start_server(self._handle, "127.0.0.1", 0)
         socket = self.server.sockets[0]
         self.client = modbus.PeblarModbusClient(
@@ -54,11 +55,14 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
         function, payload = pdu[0], pdu[1:]
         self.requests.append((unit, function, payload))
         if function in (3, 4):
-            _address, count = struct.unpack(">HH", payload)
-            values = list(range(1, count + 1))
-            body = bytes([function, count * 2]) + struct.pack(
-                f">{count}H", *values
-            )
+            address, count = struct.unpack(">HH", payload)
+            if address in self.exception_addresses:
+                body = bytes([function | 0x80, 2])
+            else:
+                values = list(range(1, count + 1))
+                body = bytes([function, count * 2]) + struct.pack(
+                    f">{count}H", *values
+                )
         elif function == 16:
             address, count = struct.unpack(">HH", payload[:4])
             body = bytes([function]) + struct.pack(">HH", address, count)
@@ -97,6 +101,35 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
             self.requests,
             [(1, 6, struct.pack(">HH", 40002, 1))],
         )
+
+    async def test_read_information_uses_reference_registers(self) -> None:
+        info = await self.client.read_information()
+
+        self.assertEqual(info.phase_count, 1)
+        self.assertTrue(info.independent_relays)
+        self.assertEqual(info.api_version, "1.2")
+        self.assertEqual(
+            [
+                struct.unpack(">HH", payload)
+                for _unit, function, payload in self.requests
+                if function == 4
+            ],
+            [
+                (30050, 12),
+                (30062, 12),
+                (30074, 12),
+                (30092, 1),
+                (30093, 1),
+                (30123, 2),
+            ],
+        )
+
+    async def test_read_information_allows_missing_api_version(self) -> None:
+        self.exception_addresses.add(30123)
+
+        info = await self.client.read_information()
+
+        self.assertEqual(info.api_version, "unknown")
 
 
 if __name__ == "__main__":

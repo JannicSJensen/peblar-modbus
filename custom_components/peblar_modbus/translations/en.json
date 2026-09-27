@@ -21,7 +21,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to the charger. Verify the address and enable its Modbus API."
+      "cannot_connect": "Could not open a TCP connection to the charger. Verify its address, port, network access, and that the Modbus API is enabled.",
+      "invalid_response": "The charger was reached but rejected the Modbus request. Verify the unit ID and that the Modbus API is enabled."
     },
     "abort": {
       "already_configured": "This charger is already configured."
