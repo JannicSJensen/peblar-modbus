@@ -1,0 +1,143 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to a Peblar charger",
+        "description": "Enable the Modbus API in the charger's advanced settings before continuing.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "unit_id": "Unit ID",
+          "scan_interval": "Polling interval",
+          "enable_control": "Enable write controls"
+        },
+        "data_description": {
+          "host": "Hostname or IP address of the charger",
+          "port": "Modbus TCP port",
+          "unit_id": "Modbus unit identifier",
+          "scan_interval": "Seconds between updates",
+          "enable_control": "Requires the charger's Modbus API access mode to be ReadWrite"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the charger. Verify the address and enable its Modbus API."
+    },
+    "abort": {
+      "already_configured": "This charger is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Peblar Modbus options",
+        "data": {
+          "scan_interval": "Polling interval"
+        },
+        "data_description": {
+          "scan_interval": "Seconds between updates"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "problem": {
+        "name": "Active error"
+      },
+      "warning": {
+        "name": "Active warning"
+      },
+      "socket_lock": {
+        "name": "Socket lock"
+      }
+    },
+    "number": {
+      "charge_current_limit": {
+        "name": "Charge current limit"
+      }
+    },
+    "sensor": {
+      "cp_state": {
+        "name": "Charging state",
+        "state": {
+          "no_ev_connected": "No EV connected",
+          "suspended": "Suspended",
+          "charging": "Charging",
+          "error": "Error",
+          "fault": "Fault",
+          "invalid": "Invalid",
+          "unknown": "Unknown"
+        }
+      },
+      "current_limit_source": {
+        "name": "Current limit source",
+        "state": {
+          "unknown": "Unknown",
+          "fixed_cable": "Fixed cable",
+          "high_temperature": "High temperature",
+          "installation_limit": "Installation limit",
+          "dynamic_load_balancing": "Dynamic load balancing",
+          "group_load_balancing": "Group load balancing",
+          "charging_cable": "Charging cable",
+          "overcurrent_protection": "Overcurrent protection",
+          "hardware_limitation": "Hardware limitation",
+          "power_factor": "Power factor",
+          "ocpp_smart_charging": "OCPP smart charging",
+          "phase_imbalance": "Phase imbalance",
+          "local_scheduled_charging": "Local scheduled charging",
+          "solar_charging": "Solar charging",
+          "current_limiter": "Current limiter",
+          "local_rest_api": "Local REST API",
+          "local_modbus_api": "Local Modbus API",
+          "external_power_limit": "External power limit",
+          "household_power_limit": "Household power limit",
+          "reserved": "Reserved",
+          "internal_power_limiter": "Internal power limiter",
+          "dynamic_rate_charging": "Dynamic rate charging",
+          "cpu_over_temperature": "CPU over temperature",
+          "randomized_start_delay": "Randomized start delay",
+          "mcb_trip": "MCB trip"
+        }
+      },
+      "current_limit_actual": {
+        "name": "Actual current limit"
+      },
+      "energy_session": {
+        "name": "Session energy"
+      },
+      "energy_total": {
+        "name": "Total energy"
+      },
+      "power_total": {
+        "name": "Total power"
+      },
+      "uptime": {
+        "name": "Last restart"
+      },
+      "wlan_signal_strength": {
+        "name": "Wi-Fi signal strength"
+      },
+      "cellular_signal_strength": {
+        "name": "Cellular signal strength"
+      },
+      "power_phase": {
+        "name": "Phase {phase} power"
+      },
+      "voltage_phase": {
+        "name": "Phase {phase} voltage"
+      },
+      "current_phase": {
+        "name": "Phase {phase} current"
+      }
+    },
+    "switch": {
+      "charge": {
+        "name": "Charge"
+      },
+      "force_single_phase": {
+        "name": "Force single phase"
+      }
+    }
+  }
+}
