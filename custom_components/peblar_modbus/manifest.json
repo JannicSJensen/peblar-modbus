@@ -1,0 +1,12 @@
+{
+  "domain": "peblar_modbus",
+  "name": "Peblar Modbus",
+  "codeowners": ["@JannicSJensen"],
+  "config_flow": true,
+  "documentation": "https://github.com/JannicSJensen/peblar-modbus",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/JannicSJensen/peblar-modbus/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
